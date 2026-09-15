@@ -9,6 +9,9 @@ import numpy as np
 
 from quality_prediction.core.geometry import BBox
 from quality_prediction.features.page import PageFeatureExtractor
+from quality_prediction.features.binning import (
+    ConfidenceBinFitter,
+)
 from quality_prediction.io.htr_json import (
     PageDocument,
     TextLine,
@@ -19,7 +22,6 @@ from quality_prediction.io.htr_json import (
 
 JSON_FEATURE_GROUPS = (
     "segmentation",
-    "regionization",
     "layout",
     "htr_confidence",
     "text",
@@ -109,22 +111,58 @@ def page_document_from_htrflow(document: Any) -> PageDocument:
 
 
 class XGBoostQualityPredictor:
-    """Load a trained model and predict from HTRflow's current document state."""
+    """Load a trained model and predict from HTRflow's document state."""
 
     def __init__(
         self,
         model: str | Path,
         feature_groups: Iterable[str] = JSON_FEATURE_GROUPS,
         feature_names: Iterable[str] | None = None,
+        bin_config: str | Path | None = None,
     ):
         import joblib
 
-        self.model = joblib.load(Path(model))
+        self.model_path = Path(model)
+        self.bin_config_path = (
+            Path(bin_config)
+            if bin_config is not None
+            else None
+        )
+
+        if not self.model_path.is_file():
+            raise FileNotFoundError(
+                f"Quality-prediction model does not exist: "
+                f"{self.model_path}"
+            )
+
+        self.model = joblib.load(self.model_path)
         self.feature_groups = tuple(feature_groups)
-        self.feature_names = tuple(feature_names or self._model_feature_names())
+        self.feature_names = tuple(
+            feature_names or self._model_feature_names()
+        )
+
         if not self.feature_names:
-            raise ValueError("The model has no feature names; configure feature_names")
-        self.extractor = PageFeatureExtractor()
+            raise ValueError(
+                "The model has no feature names; "
+                "configure feature_names"
+            )
+
+        confidence_bins = None
+
+        if self.bin_config_path is not None:
+            if not self.bin_config_path.is_file():
+                raise FileNotFoundError(
+                    "Confidence bin configuration does not exist: "
+                    f"{self.bin_config_path}"
+                )
+
+            confidence_bins = ConfidenceBinFitter().load(
+                str(self.bin_config_path)
+            )
+
+        self.extractor = PageFeatureExtractor(
+            bin_config=confidence_bins,
+        )
 
     def _model_feature_names(self) -> list[str]:
         names = getattr(self.model, "feature_names_in_", None)

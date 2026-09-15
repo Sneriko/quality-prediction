@@ -807,6 +807,17 @@ Keep documents from the same archival volume or source together when splitting d
 
 Reference the selected model in a `QualityPrediction` pipeline step and export the resulting document as JSON.
 
+### Fitted confidence bins during inference
+
+Models trained on datasets built with `--bin-config` must use the same
+bin configuration during inference:
+
+```python
+predictor = XGBoostQualityPredictor(
+    model="model.joblib",
+    bin_config="confidence_bins.json",
+)
+
 ## Development
 
 Create a development environment:

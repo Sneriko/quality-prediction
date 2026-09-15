@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "quality-prediction"
-version = "0.1.0"
+version = "0.1.1"
 description = "Quality prediction, feature extraction, and evaluation for HTR and OCR output."
 readme = "README.md"
 requires-python = ">=3.10"
